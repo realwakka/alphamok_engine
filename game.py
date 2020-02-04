@@ -78,27 +78,34 @@ class Referee:
             return 0
 
     def get_game_state(self):
-        cache = np.zeros((width,height))
-        direction_pairs = [(lambda x, y : x + 1, y, lambda x, y : x - 1, y),
-                           (lambda x, y : x, y + 1, lambda x, y : x, y - 1),
-                           (lambda x, y : x - 1, y + 1, lambda x, y : x + 1, y - 1),
-                           (lambda x, y : x + 1, y + 1, lambda x, y : x + 1, y + 1)]
+        cache = np.zeros((self.board.width(),self.board.height()))
+        direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
+                           (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
+                           (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
+                           (lambda x, y : (x + 1, y + 1), lambda x, y : (x + 1, y + 1))]
 
-        for i in range(self.board.width):
-            for j in range(self.board.height):
+        is_full = True
+        moved_count = 0
+
+        for i in range(self.board.width()):
+            for j in range(self.board.height()):
                 player = self.board.get(i, j)
                 if player == 0:
+                    is_full = False
                     continue
+                
+                moved_count += 1
                 
                 for direction_pair in direction_pairs:
                     combo = self.max_combo(i, j, direction_pair[0], player)
                     combo += self.max_combo(i, j, direction_pair[1], player)
-                if combo == 5:
-                    return player + 2
+                    if combo == 4:
+                        return player
 
-                
-         
-        
+        if is_full:
+            return GameState.END_DRAW
+
+        return moved_count % 2 + 3
         
 
     def start_game(self, player1, player2):
@@ -108,7 +115,7 @@ class Referee:
                 self.board.move(next_move[0], next_move[1], 1)
                 break
 
-            game_state = self.board.get_game_state()
+            game_state = self.get_game_state()
             if game_state < 3:
                 return game_state
         

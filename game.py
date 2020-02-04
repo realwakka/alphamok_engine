@@ -68,12 +68,13 @@ class Referee:
     def max_combo(self, x, y, direction_func, prev_player):
         try:
             player = self.board.get(x, y)
-        except:
+        except NameError:
+            print("error")
             return 0
-        
+
         if player == prev_player:
             nx, ny = direction_func(x, y)
-            return self.max_combo(nx, ny, direction_func, player)
+            return self.max_combo(nx, ny, direction_func, player) + 1
         else:
             return 0
 
@@ -82,7 +83,7 @@ class Referee:
         direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
                            (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
                            (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
-                           (lambda x, y : (x + 1, y + 1), lambda x, y : (x + 1, y + 1))]
+                           (lambda x, y : (x + 1, y + 1), lambda x, y : (x - 1, y - 1))]
 
         is_full = True
         moved_count = 0
@@ -99,7 +100,7 @@ class Referee:
                 for direction_pair in direction_pairs:
                     combo = self.max_combo(i, j, direction_pair[0], player)
                     combo += self.max_combo(i, j, direction_pair[1], player)
-                    if combo == 4:
+                    if combo == 6:
                         return player
 
         if is_full:

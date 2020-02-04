@@ -25,7 +25,7 @@ class Board:
         if x < 0 or x >= self.width() or y < 0 or y >= self.height():
             raise NameError("Out of bounds")
         
-        for i in range(self.board.shape[3]):
+        for i in range(self.board.shape[2]):
             if self.board[x, y, i] == 1:
                 return i
         
@@ -51,8 +51,14 @@ class Board:
                 
         return ret
 
-
-
+    def __str__(self):
+        ret = ""
+        for i in range(self.width()):
+            ret += "\n"
+            for j in range(self.height()):
+                ret += " " + str(self.get(i, j))
+        return ret
+                
 
 
 class Referee:
@@ -84,7 +90,7 @@ class Referee:
                 if player == 0:
                     continue
                 
-                for direction_pair : direction_pairs:
+                for direction_pair in direction_pairs:
                     combo = self.max_combo(i, j, direction_pair[0], player)
                     combo += self.max_combo(i, j, direction_pair[1], player)
                 if combo == 5:
@@ -97,21 +103,20 @@ class Referee:
 
     def start_game(self, player1, player2):
         while True:
-            try:
+            while True:
                 next_move = player1.get_next_move(self.board, 1);
-                self.board.move(next_move)
-            except:
-                continue
-            break
+                self.board.move(next_move[0], next_move[1], 1)
+                break
 
+            game_state = self.board.get_game_state()
+            if game_state < 3:
+                return game_state
         
-        while True:
-            try:
+            while True:
                 next_move = player2.get_next_move(self.board, 2);
-                self.board.move(next_move)
-            except:
-                continue
-            break
+                self.board.move(next_move[0], next_move[1], 2)
+                break
+
             
 
 

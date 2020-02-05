@@ -69,7 +69,6 @@ class Referee:
         try:
             player = self.board.get(x, y)
         except NameError:
-            print("error")
             return 0
 
         if player == prev_player:

@@ -105,7 +105,10 @@ class MCTS:
 
     def get_next_move(self, board, player):
         if len(self.curr_node.children) == 0:
-            raise NameError("I don't know!!")
+            expanded_node = self.curr_node.expand()
+            win = expanded_node.simulate(100)
+            expanded_node.update(win, 100, expanded_node.player)
+            #raise NameError("I don't know!!")
         
         next_move, next_child = max(self.curr_node.children, key=lambda p: p[1].get_utc())
         self.curr_node = next_child

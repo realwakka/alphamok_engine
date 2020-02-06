@@ -15,19 +15,35 @@ class TreeNode:
             root = root.parent
         return root
 
+    def get_move_by_child(self, target_child):
+        for move, child in children:
+            if target_child == child:
+                return move
+
+        raise NameError("child not found")
+        
+
     def get_utc(self):
         t = self.get_root().played
         c = math.sqrt(2)
         wi = self.won
         ni = self.played
         return wi/ni + c * sqrt(log(t) / ni)
-        
+
+    def get_board(self):
+        board = Board(15,15)
+        node = self
+        while node.parent != None:
+            move = node.parent.get_move_by_child(self. node)
+            board.move(move[0], move[1])
+            node = node.parent
+        return board
 
     def select(self):
         max(self.children, key = lambda move, child : child.get_utc())
 
     def expand(self):
-        board = Board(15,15)
+        board = self.get_board()
         availables = board.available_moves()
 
     def simulate(self, playout):
@@ -52,8 +68,21 @@ class TreeNode:
 
 class MCTS:
     def __init__(self):
-        self.root = TreeNode(None)
+        self.root = TreeNode(None, (-1, -1))
         self.curr_node = self.root;
+
+    def train_self(self):
+        selected_node = self.root.select()
+        
+
+class MCTSPlayer:
+    def __init__(self):
+        self.mcts = MCTS()
+
+    def prestart(self):
+        mcts.train_self()
+        
+    
 
 
 

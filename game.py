@@ -62,23 +62,23 @@ class Board:
 
 
 class Referee:
-    def __init__(self, width, height):
-        self.board = Board(width, height)
+    def __init__(self):
+        pass
 
-    def max_combo(self, x, y, direction_func, prev_player):
+    def max_combo(self, board, x, y, direction_func, prev_player):
         try:
-            player = self.board.get(x, y)
+            player = board.get(x, y)
         except NameError:
             return 0
 
         if player == prev_player:
             nx, ny = direction_func(x, y)
-            return self.max_combo(nx, ny, direction_func, player) + 1
+            return self.max_combo(board, nx, ny, direction_func, player) + 1
         else:
             return 0
 
-    def get_game_state(self):
-        cache = np.zeros((self.board.width(),self.board.height()))
+    def get_game_state(self, board):
+        cache = np.zeros((board.width(),board.height()))
         direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
                            (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
                            (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
@@ -87,9 +87,9 @@ class Referee:
         is_full = True
         moved_count = 0
 
-        for i in range(self.board.width()):
-            for j in range(self.board.height()):
-                player = self.board.get(i, j)
+        for i in range(board.width()):
+            for j in range(board.height()):
+                player = board.get(i, j)
                 if player == 0:
                     is_full = False
                     continue
@@ -97,8 +97,8 @@ class Referee:
                 moved_count += 1
                 
                 for direction_pair in direction_pairs:
-                    combo = self.max_combo(i, j, direction_pair[0], player)
-                    combo += self.max_combo(i, j, direction_pair[1], player)
+                    combo = self.max_combo(board, i, j, direction_pair[0], player)
+                    combo += self.max_combo(board, i, j, direction_pair[1], player)
                     if combo == 6:
                         return player
 
@@ -108,11 +108,11 @@ class Referee:
         return moved_count % 2 + 3
         
 
-    def start_game(self, player1, player2):
+    def start_game(self, board, player1, player2):
         while True:
             while True:
-                next_move = player1.get_next_move(self.board, 1);
-                self.board.move(next_move[0], next_move[1], 1)
+                next_move = player1.get_next_move(board, 1);
+                board.move(next_move[0], next_move[1], 1)
                 break
 
             game_state = self.get_game_state()
@@ -120,8 +120,8 @@ class Referee:
                 return game_state
         
             while True:
-                next_move = player2.get_next_move(self.board, 2);
-                self.board.move(next_move[0], next_move[1], 2)
+                next_move = player2.get_next_move(board, 2);
+                board.move(next_move[0], next_move[1], 2)
                 break
 
             

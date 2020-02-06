@@ -56,6 +56,7 @@ class TreeNode:
         if len(availables) == 0:
             raise NameError("no availables")
 
+        # select random move now, but it will be selected by nn
         next_move = availables[randint(0, len(availables)-1)]
         new_child = TreeNode(self)
         self.children.append((next_move, new_child))

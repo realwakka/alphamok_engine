@@ -44,8 +44,8 @@ class Board:
 
     def available_moves(self):
         ret = []
-        for i in range(width):
-            for j in range(height):
+        for i in range(self.width()):
+            for j in range(self.height()):
                 if self.board[i, j, 0] == 1:
                     ret.append((i, j))
                 
@@ -109,18 +109,21 @@ class Referee:
         
 
     def start_game(self, board, player1, player2):
+        player1.prestart()
+        player2.prestart()
+
         while True:
             while True:
-                next_move = player1.get_next_move(board, 1);
+                next_move = player1.get_next_move(board, 1)
                 board.move(next_move[0], next_move[1], 1)
                 break
 
-            game_state = self.get_game_state()
+            game_state = self.get_game_state(board)
             if game_state < 3:
                 return game_state
         
             while True:
-                next_move = player2.get_next_move(board, 2);
+                next_move = player2.get_next_move(board, 2)
                 board.move(next_move[0], next_move[1], 2)
                 break
 

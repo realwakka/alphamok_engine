@@ -1,6 +1,10 @@
-from game import Referee
+from game import Referee, Board
+from mcts import MCTSPlayer
 
 class Player:
+    def prestart(self):
+        pass
+
     def get_next_move(self, board, player):
         print(board)
         x = int(input("x = "))
@@ -9,8 +13,10 @@ class Player:
 
 def main():
     player = Player()
-    referee = Referee(10, 10)
-    referee.start_game(player, player)
+    player1 = MCTSPlayer()
+    board = Board(15,15)
+    referee = Referee()
+    referee.start_game(board, player1, player)
     
     
     

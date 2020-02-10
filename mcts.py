@@ -1,9 +1,12 @@
 from random import randint
+import tensorflow as tf
+import numpy as np
+import copy
 from game import Referee, Board
 import math
 
 class TreeNode:
-    def __init__(self, parent):
+    def __init__(self, parent, policy):
         self.played = 0
         self.win = 0
         self.parent = parent
@@ -12,7 +15,9 @@ class TreeNode:
         else:
             self.player = 2
 
-        self.children = []
+        self.children = {}
+        self.policy = policy
+        
 
     def get_root(self):
         root = self
@@ -21,7 +26,7 @@ class TreeNode:
         return root
 
     def get_move_by_child(self, target_child):
-        for move, child in self.children:
+        for move, child in self.children.items():
             if target_child == child:
                 return move
 
@@ -56,9 +61,14 @@ class TreeNode:
         if len(availables) == 0:
             raise NameError("no availables")
 
+        result = policy(board, player)
+        for move, value in result:
+            self.children[move] = TreeNode(self, 
+            
+
         # select random move now, but it will be selected by nn
         next_move = availables[randint(0, len(availables)-1)]
-        new_child = TreeNode(self)
+        new_child = TreeNode(self, self.policy)
         self.children.append((next_move, new_child))
         return new_child
 
@@ -94,9 +104,10 @@ class TreeNode:
             
 
 class MCTS:
-    def __init__(self):
-        self.root = TreeNode(None)
+    def __init__(self, policy):
+        self.root = TreeNode(None, policy)
         self.curr_node = self.root
+        self.predictor = Predictor(15, 15)
 
     def train_self(self):
         selected_node = self.root.select()
@@ -114,20 +125,72 @@ class MCTS:
         next_move, next_child = max(self.curr_node.children, key=lambda p: p[1].get_utc())
         self.curr_node = next_child
         return next_move
-        
+
+class Predictor:
+    def __init__(self, width, height):
+        self.model = tf.keras.models.Sequential([
+            tf.keras.layers.Conv2D(32, (3,3), activation='relu',input_shape=(height, width, 3)),
+            tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+            tf.keras.layers.Conv2D(128, (3,3), activation='relu'),
+            tf.keras.layers.Conv2D(4, (1,1), activation='relu'),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(512, activation='relu'),
+            tf.keras.layers.Dense(1)
+        ])
+
+        self.model.compile(optimizer='adam',
+                           loss='sparse_categorical_crossentropy',
+                           metrics=['accuracy'])
+
+    def reverse_player(self, board):
+        for i in board.shape[0]:
+            for j in board.shape[1]:
+                if board[i, j, 0] == 1:
+                    if board[i, j, 1] == 1:
+                        board[i, j, 1] = 0
+                        board[i, j, 2] = 1
+                    else:
+                        board[i, j, 1] = 1
+                        board[i, j, 2] = 0
+
+    def predict(self, board, player):
+        availables = board.available_moves()
+        train_data = np.zeros((len(availables), board.width(), board.height(), 3))
+
+        for i in range(len(availables)):
+            move = availables[i]
+            b = copy.deepcopy(board)
+            if player == 2:
+                self.reverse_player(b.board)
+
+            b.move(move[0], move[1], 1)
+            train_data[i, :] = b.board
+            
+        scores = self.model.predict(train_data)
+
+        result = []
+        for i in range(len(availables)):
+            result.append((availables[i], scores[i,0]))
+
+        result.sort(key=lambda x : x[1], reverse=True)
+        return result
 
 class MCTSPlayer:
-    def __init__(self):
-        self.mcts = MCTS()
+    def __init__(self, width, height, player):
+        self.predictor = Predictor(width, height)
+        self.mcts = MCTS(width, height, policy)
+
+    def policy(self, board, player):
+        return self.predictor.predict(board,player)
 
     def prestart(self):
         self.mcts.train_self()
+        
     def get_next_move(self, board, player):
         return self.mcts.get_next_move(board, player)
-        
+
+if __name__ == "__main__":
+    board = Board(15, 15)
+    predictor = Predictor(15, 15)
+    print(predictor.predict(board, 1))
     
-
-
-
-
-

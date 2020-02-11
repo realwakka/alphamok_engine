@@ -1,5 +1,6 @@
 from game import Referee, Board
 from mcts import MCTSPlayer
+from ai_player import AIPlayer
 
 class Player:
     def prestart(self):
@@ -12,11 +13,14 @@ class Player:
         return (x, y)
 
 def main():
-    player = Player()
-    player1 = MCTSPlayer()
+    
     board = Board(15,15)
     referee = Referee()
-    referee.start_game(board, player1, player)
+    player1 = AIPlayer(board.width(), board.height(), 1)
+    player2 = AIPlayer(board.width(), board.height(), 2)
+    result = referee.start_game(board, player1, player2)
+    player1.on_finish_game(result)
+    player2.on_finish_game(result)
     
     
     

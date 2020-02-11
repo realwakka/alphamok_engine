@@ -63,7 +63,7 @@ class TreeNode:
 
         result = policy(board, player)
         for move, value in result:
-            self.children[move] = TreeNode(self, 
+            self.children[move] = TreeNode(self, self.policy)
             
 
         # select random move now, but it will be selected by nn

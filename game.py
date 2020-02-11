@@ -126,6 +126,10 @@ class Referee:
                 next_move = player2.get_next_move(board, 2)
                 board.move(next_move[0], next_move[1], 2)
                 break
+            
+            game_state = self.get_game_state(board)
+            if game_state < 3:
+                return game_state
 
             
 

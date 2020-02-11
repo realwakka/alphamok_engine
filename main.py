@@ -13,14 +13,18 @@ class Player:
         return (x, y)
 
 def main():
+
+    width = 15
+    height = 15
     
-    board = Board(15,15)
-    referee = Referee()
-    player1 = AIPlayer(board.width(), board.height(), 1)
-    player2 = AIPlayer(board.width(), board.height(), 2)
-    result = referee.start_game(board, player1, player2)
-    player1.on_finish_game(result)
-    player2.on_finish_game(result)
+    player1 = AIPlayer(width, height, 1)
+    player2 = AIPlayer(width, height, 2)
+
+    for i in range(300):
+        board = Board(15,15)
+        referee = Referee()
+        
+        result = referee.start_game(board, player1, player2)
     
     
     

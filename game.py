@@ -120,6 +120,8 @@ class Referee:
 
             game_state = self.get_game_state(board)
             if game_state < 3:
+                player1.on_finish_game(game_state)
+                player2.on_finish_game(game_state)
                 return game_state
         
             while True:
@@ -129,6 +131,8 @@ class Referee:
             
             game_state = self.get_game_state(board)
             if game_state < 3:
+                player1.on_finish_game(game_state)
+                player2.on_finish_game(game_state)
                 return game_state
 
             

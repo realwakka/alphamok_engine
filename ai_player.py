@@ -43,6 +43,7 @@ class AIPlayer:
         pass
 
     def on_finish_game(self, win_player):
+        """
         data_size = len(self.history)
         train_data = np.zeros((len(self.history), self.width, self.height, 3))
         train_result = np.zeros((len(self.history)))
@@ -51,22 +52,18 @@ class AIPlayer:
             board = self.history[i]
             train_data[i, :] = board.board
         
+        
+        
         predict_data = self.model.predict(train_data)
-
-        print("predict_data!!!!\n")
-        print(predict_data.shape)
-
-        train_result = np.ones(data_size) * win_player
-        #train_result[:, win_player] = 1
-        #train_result = predict_data
-
-        #train_result = predict_data + acc
-        print("train_data!!!!\n")
-
-        print("winplayer " + str(win_player))
+        
+        train_result = predict_data[:, win_player] * 0.9 + 0.1
+        """
+        train_data = np.zeros((1, self.width, self.height, 3))
+        train_data[0, :] = self.history[-1].board
+        train_result = np.ones((1, 1)) * win_player
+        
+        print(train_result.shape)
         self.model.fit(x=train_data, y=train_result)
-        
-        
 
 
     def get_next_move(self, board, player):
@@ -88,16 +85,13 @@ class AIPlayer:
         for i in range(len(availables)):
             move = availables[i]
             b = copy.deepcopy(board)
-            if player == 2:
-                self.reverse_player(b.board)
-
-            b.move(move[0], move[1], 1)
+            b.move(move[0], move[1], player)
             train_data[i, :] = b.board
             
         scores = self.model.predict(train_data)
         result = []
         for i in range(len(availables)):
-            result.append((availables[i], scores[i, self.player]))
+            result.append((availables[i], scores[i, player]))
 
         result.sort(key=lambda x : x[1], reverse=True)
         return result

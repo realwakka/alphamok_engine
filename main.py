@@ -17,14 +17,13 @@ def main():
     width = 15
     height = 15
     
-    player1 = AIPlayer(width, height, 1)
-    player2 = AIPlayer(width, height, 2)
+    player1 = AIPlayer(width, height)
 
     for i in range(300):
         board = Board(15,15)
         referee = Referee()
         
-        result = referee.start_game(board, player1, player2)
+        result = referee.start_game(board, player1, player1)
     
     
     

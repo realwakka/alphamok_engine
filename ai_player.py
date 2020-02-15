@@ -5,12 +5,18 @@ import numpy as np
 from game import Board
 import copy
 
+model_file = 'simple_ai_player.h5'
+
 class AIPlayer:
-    def __init__(self, width, height, player):
+    def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.player = player
         self.history = []
+        try:
+            self.model = tf.keras.models.load_model(model_file)
+            return
+        except OSError:
+            print('no model file... creating new model...')
 
         self.model = tf.keras.models.Sequential([
             tf.keras.layers.Conv2D(32, (3,3), activation='relu',input_shape=(height, width, 3)),
@@ -23,7 +29,7 @@ class AIPlayer:
         ])
 
         self.model.compile(optimizer='adam',
-                           loss='sparse_categorical_crossentropy',
+                           loss='categorical_crossentropy',
                            metrics=['accuracy'])
         print(self.model.summary())
         
@@ -41,29 +47,40 @@ class AIPlayer:
 
     def prestart(self):
         pass
+    
+    def save(self):
+        self.model.save(model_file)
 
     def on_finish_game(self, win_player):
-        """
-        data_size = len(self.history)
-        train_data = np.zeros((len(self.history), self.width, self.height, 3))
-        train_result = np.zeros((len(self.history)))
+        
+        sample_size = len(self.history)
+        train_input = np.zeros((sample_size * 4, self.width, self.height, 3))
 
-        for i in range(len(self.history)):
+        
+        for i in range(sample_size):
             board = self.history[i]
-            train_data[i, :] = board.board
+            train_input[i*4, :] = board.board
+            train_input[i*4+1, :] = np.rot90(train_input[i*4, :])
+            train_input[i*4+2, :] = np.rot90(train_input[i*4+1, :])
+            train_input[i*4+3, :] = np.rot90(train_input[i*4+2, :])
         
         
         
-        predict_data = self.model.predict(train_data)
+        predict_data = self.model.predict(train_input)
         
-        train_result = predict_data[:, win_player] * 0.9 + 0.1
+        train_output = predict_data
+        train_output[:, win_player] += 0.1
+
+        print(train_output.shape)
+        
+        self.save()
+
         """
         train_data = np.zeros((1, self.width, self.height, 3))
         train_data[0, :] = self.history[-1].board
         train_result = np.ones((1, 1)) * win_player
-        
-        print(train_result.shape)
-        self.model.fit(x=train_data, y=train_result)
+        """
+        self.model.fit(x=train_input, y=train_output)
 
 
     def get_next_move(self, board, player):

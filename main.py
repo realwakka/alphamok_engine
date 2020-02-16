@@ -2,7 +2,7 @@ from game import Referee, Board
 from mcts import MCTSPlayer
 from ai_player import AIPlayer
 
-class Player:
+class CommandPlayer:
     def prestart(self):
         pass
 
@@ -18,12 +18,15 @@ def main():
     height = 15
     
     player1 = AIPlayer(width, height)
+    player2 = CommandPlayer()
 
-    for i in range(300):
+    for i in range(500):
         board = Board(15,15)
         referee = Referee()
-        
         result = referee.start_game(board, player1, player1)
+
+    player1.save()
+        
     
     
     

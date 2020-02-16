@@ -11,7 +11,6 @@ class AIPlayer:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.history = []
         try:
             self.model = tf.keras.models.load_model(model_file)
             return
@@ -25,25 +24,29 @@ class AIPlayer:
             tf.keras.layers.Conv2D(4, (1,1), activation='relu'),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dense(3)
+            tf.keras.layers.Dense(64, activation='relu'),            
+            tf.keras.layers.Dense(1)
         ])
 
         self.model.compile(optimizer='adam',
-                           loss='categorical_crossentropy',
+                           loss='mean_squared_error',
                            metrics=['accuracy'])
         print(self.model.summary())
         
 
     def reverse_player(self, board):
-        for i in range(board.shape[0]):
-            for j in range(board.shape[1]):
-                if board[i, j, 0] == 1:
-                    if board[i, j, 1] == 1:
-                        board[i, j, 1] = 0
-                        board[i, j, 2] = 1
+        reversed = board
+        for i in range(reversed.shape[0]):
+            for j in range(reversed.shape[1]):
+                if reversed[i, j, 0] == 0:
+                    if reversed[i, j, 1] == 1:
+                        reversed[i, j, 1] = 0
+                        reversed[i, j, 2] = 1
                     else:
-                        board[i, j, 1] = 1
-                        board[i, j, 2] = 0
+                        reversed[i, j, 1] = 1
+                        reversed[i, j, 2] = 0
+                        
+        return reversed
 
     def prestart(self):
         pass
@@ -51,66 +54,59 @@ class AIPlayer:
     def save(self):
         self.model.save(model_file)
 
-    def on_finish_game(self, win_player):
+    def on_finish_game(self, win_player, history):
+        if win_player == 0:
+            return
         
-        sample_size = len(self.history)
+        # if win_player == 1 increase value, win_player == 2 decrease value
+        sample_size = len(history)
         train_input = np.zeros((sample_size * 4, self.width, self.height, 3))
-
         
         for i in range(sample_size):
-            board = self.history[i]
+            board = history[i]
             train_input[i*4, :] = board.board
             train_input[i*4+1, :] = np.rot90(train_input[i*4, :])
             train_input[i*4+2, :] = np.rot90(train_input[i*4+1, :])
             train_input[i*4+3, :] = np.rot90(train_input[i*4+2, :])
         
-        
-        
         predict_data = self.model.predict(train_input)
         
         train_output = predict_data
-        train_output[:, win_player] += 0.1
+        if win_player == 1:
+            train_output += 1
+        elif win_player == 2:
+            train_output -= 1
+            
+        #self.save()
 
-        print(train_output.shape)
-        
-        self.save()
-
-        """
-        train_data = np.zeros((1, self.width, self.height, 3))
-        train_data[0, :] = self.history[-1].board
-        train_result = np.ones((1, 1)) * win_player
-        """
-        self.model.fit(x=train_input, y=train_output)
+        self.model.fit(x=train_input, y=train_output, epochs=10)
 
 
     def get_next_move(self, board, player):
-        curr_board = copy.deepcopy(board)
-        self.history.append(curr_board)
-
         predict_result = self.predict(board, player)
         next_move = predict_result[0][0]
-        next_board = copy.deepcopy(board)
-        next_board.move(next_move[0], next_move[1], player)
-        self.history.append(next_board)
-        
         return next_move
 
     def predict(self, board, player):
         availables = board.available_moves()
-        train_data = np.zeros((len(availables), board.width(), board.height(), 3))
+        predict_input = np.zeros((len(availables), board.width(), board.height(), 3))
 
         for i in range(len(availables)):
             move = availables[i]
             b = copy.deepcopy(board)
             b.move(move[0], move[1], player)
-            train_data[i, :] = b.board
+            predict_input[i, :] = b.board
             
-        scores = self.model.predict(train_data)
+        scores = self.model.predict(predict_input)
         result = []
         for i in range(len(availables)):
-            result.append((availables[i], scores[i, player]))
+            result.append((availables[i], scores[i]))
 
-        result.sort(key=lambda x : x[1], reverse=True)
+        if player == 1:
+            result.sort(key=lambda x : x[1], reverse=True)
+        else:
+            result.sort(key=lambda x : x[1], reverse=False)
+            
         return result
 
 

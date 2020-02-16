@@ -1,5 +1,7 @@
 import numpy as np
 import enum
+import random
+import copy
 
 class GameState(enum.Enum):
     END_DRAW = 0
@@ -63,7 +65,7 @@ class Board:
 
 class Referee:
     def __init__(self):
-        pass
+        self.id = 1
 
     def max_combo(self, board, x, y, direction_func, prev_player):
         try:
@@ -109,29 +111,31 @@ class Referee:
         
 
     def start_game(self, board, player1, player2):
+        history = []
+        
         player1.prestart()
         player2.prestart()
 
         while True:
-            while True:
-                next_move = player1.get_next_move(board, 1)
-                board.move(next_move[0], next_move[1], 1)
-                break
+            next_move = player1.get_next_move(board, 1)
+            board.move(next_move[0], next_move[1], 1)
+            history.append(copy.deepcopy(board))
+            print(board)
+            x = input("sdf")
             
             game_state = self.get_game_state(board)
             if game_state < 3:
-                player1.on_finish_game(game_state)
+                player1.on_finish_game(game_state, history)
                 #player2.on_finish_game(game_state)
                 return game_state
         
-            while True:
-                next_move = player2.get_next_move(board, 2)
-                board.move(next_move[0], next_move[1], 2)
-                break
+            next_move = player2.get_next_move(board, 2)
+            board.move(next_move[0], next_move[1], 2)
+            history.append(copy.deepcopy(board))            
 
             game_state = self.get_game_state(board)
             if game_state < 3:
-                player1.on_finish_game(game_state)
+                player1.on_finish_game(game_state, history)
                 #player2.on_finish_game(game_state)
                 return game_state
 

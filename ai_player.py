@@ -71,13 +71,11 @@ class AIPlayer:
         
         predict_data = self.model.predict(train_input)
         
-        train_output = predict_data
+        train_output = predict_data * 0.9
         if win_player == 1:
-            train_output += 1
-        elif win_player == 2:
-            train_output -= 1
+            train_output += 0.1
             
-        #self.save()
+        self.save()
 
         self.model.fit(x=train_input, y=train_output, epochs=10)
 
@@ -102,10 +100,7 @@ class AIPlayer:
         for i in range(len(availables)):
             result.append((availables[i], scores[i]))
 
-        if player == 1:
-            result.sort(key=lambda x : x[1], reverse=True)
-        else:
-            result.sort(key=lambda x : x[1], reverse=False)
+        result.sort(key=lambda x : x[1], reverse=False)
             
         return result
 

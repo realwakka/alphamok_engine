@@ -24,6 +24,8 @@ def main():
         board = Board(15,15)
         referee = Referee()
         result = referee.start_game(board, player1, player1)
+        print("win : " + str(result) + "\n")
+        print("episode" + str(i) + "\n")
 
     player1.save()
         

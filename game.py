@@ -120,8 +120,8 @@ class Referee:
             next_move = player1.get_next_move(board, 1)
             board.move(next_move[0], next_move[1], 1)
             history.append(copy.deepcopy(board))
-            print(board)
-            x = input("sdf")
+            #print(board)
+            #x = input("sdf")
             
             game_state = self.get_game_state(board)
             if game_state < 3:

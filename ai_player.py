@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import random
 import tensorflow as tf
 import numpy as np
 from game import Board
@@ -11,6 +12,8 @@ class AIPlayer:
     def __init__(self, width, height):
         self.width = width
         self.height = height
+        self.data_buffer = []
+        
         try:
             self.model = tf.keras.models.load_model(model_file)
             return
@@ -25,17 +28,16 @@ class AIPlayer:
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(512, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),            
-            tf.keras.layers.Dense(1)
+            tf.keras.layers.Dense(3)
         ])
 
         self.model.compile(optimizer='adam',
-                           loss='mean_squared_error',
+                           loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                            metrics=['accuracy'])
-        print(self.model.summary())
         
 
     def reverse_player(self, board):
-        reversed = board
+        reversed = np.copy(board)
         for i in range(reversed.shape[0]):
             for j in range(reversed.shape[1]):
                 if reversed[i, j, 0] == 0:
@@ -55,30 +57,30 @@ class AIPlayer:
         self.model.save(model_file)
 
     def on_finish_game(self, win_player, history):
-        if win_player == 0:
+        # save history to data_buffer
+        for board in history:
+            b = board.board
+            self.data_buffer.append([b, win_player])
+            b = np.rot90(b)
+            self.data_buffer.append([b, win_player])
+            b = np.rot90(b)
+            self.data_buffer.append([b, win_player])
+            b = np.rot90(b)
+            self.data_buffer.append([b, win_player])
+
+        sample_size = 512
+        if len(self.data_buffer) < sample_size:
             return
         
-        # if win_player == 1 increase value, win_player == 2 decrease value
-        sample_size = len(history)
-        train_input = np.zeros((sample_size * 4, self.width, self.height, 3))
-        
-        for i in range(sample_size):
-            board = history[i]
-            train_input[i*4, :] = board.board
-            train_input[i*4+1, :] = np.rot90(train_input[i*4, :])
-            train_input[i*4+2, :] = np.rot90(train_input[i*4+1, :])
-            train_input[i*4+3, :] = np.rot90(train_input[i*4+2, :])
-        
-        predict_data = self.model.predict(train_input)
-        
-        train_output = predict_data * 0.9
-        if win_player == 1:
-            train_output += 0.1
-            
-        self.save()
+        sample_data = random.sample(self.data_buffer, sample_size)
+        train_input = np.zeros((sample_size, self.width, self.height, 3))
+        train_output = np.ones((sample_size))
+        for i in range(0, sample_size):
+            train_input[i, :] = sample_data[i][0]
+            train_output[i] = sample_data[i][1]
 
-        self.model.fit(x=train_input, y=train_output, epochs=10)
-
+        self.model.fit(x=train_input, y=train_output, epochs=5)
+        self.save()        
 
     def get_next_move(self, board, player):
         predict_result = self.predict(board, player)
@@ -91,20 +93,17 @@ class AIPlayer:
 
         for i in range(len(availables)):
             move = availables[i]
-            b = copy.deepcopy(board)
-            b.move(move[0], move[1], player)
-            predict_input[i, :] = b.board
+            if player == 1:
+                b = copy.deepcopy(board.board)
+            else:
+                b = self.reverse_player(board.board)
+            b[move[0], move[1], player] = 1
+            predict_input[i, :] = b
             
         scores = self.model.predict(predict_input)
         result = []
         for i in range(len(availables)):
-            result.append((availables[i], scores[i]))
+            result.append((availables[i], scores[i, player]))
 
         result.sort(key=lambda x : x[1], reverse=False)
-            
         return result
-
-
-    
-
-

@@ -9,11 +9,12 @@ import copy
 model_file = 'simple_ai_player.h5'
 
 class AIPlayer:
-    def __init__(self, width, height):
+    def __init__(self, width, height, training):
         self.width = width
         self.height = height
         self.data_buffer = []
-        
+        self.training = training
+        self.e = 0.2
         try:
             self.model = tf.keras.models.load_model(model_file)
             return
@@ -21,7 +22,7 @@ class AIPlayer:
             print('no model file... creating new model...')
 
         self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, (3,3), activation='relu',input_shape=(height, width, 3)),
+            tf.keras.layers.Conv2D(32, (3,3), activation='relu',input_shape=(width, height, 3)),
             tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
             tf.keras.layers.Conv2D(128, (3,3), activation='relu'),
             tf.keras.layers.Conv2D(4, (1,1), activation='relu'),
@@ -83,6 +84,10 @@ class AIPlayer:
         self.save()        
 
     def get_next_move(self, board, player):
+        if self.training and self.e > random.random():
+            availables = board.available_moves()
+            return random.choice(availables)
+            
         predict_result = self.predict(board, player)
         next_move = predict_result[0][0]
         return next_move
@@ -93,10 +98,7 @@ class AIPlayer:
 
         for i in range(len(availables)):
             move = availables[i]
-            if player == 1:
-                b = copy.deepcopy(board.board)
-            else:
-                b = self.reverse_player(board.board)
+            b = copy.deepcopy(board.board)
             b[move[0], move[1], player] = 1
             predict_input[i, :] = b
             

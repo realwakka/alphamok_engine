@@ -3,6 +3,36 @@ import enum
 import random
 import copy
 
+def get_game_state(board):
+    cache = np.zeros((board.width(),board.height()))
+    direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
+                        (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
+                        (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
+                        (lambda x, y : (x + 1, y + 1), lambda x, y : (x - 1, y - 1))]
+
+    is_full = True
+    moved_count = 0
+
+    for i in range(board.width()):
+        for j in range(board.height()):
+            player = board.get(i, j)
+            if player == 0:
+                is_full = False
+                continue
+            
+            moved_count += 1
+            
+            for direction_pair in direction_pairs:
+                combo = self.max_combo(board, i, j, direction_pair[0], player)
+                combo += self.max_combo(board, i, j, direction_pair[1], player)
+                if combo == 6:
+                    return player
+
+    if is_full:
+        return GameState.END_DRAW
+
+    return moved_count % 2 + 3
+
 class GameState(enum.Enum):
     END_DRAW = 0
     END_BLACK_WIN = 1

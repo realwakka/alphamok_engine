@@ -4,20 +4,22 @@ import numpy as np
 import copy
 from game import Referee, Board
 import math
+from network import PolicyValueNet
 
 class TreeNode:
-    def __init__(self, parent, policy):
-        self.played = 0
-        self.win = 0
-        self.parent = parent
-        if parent == None or parent.player == 2:
-            self.player = 1
-        else:
-            self.player = 2
+    def __init__(self, parent):
+        self._parent = parent
+        self._children = {}
+        self._n_visits = 0
+        self._Q = 0
+        self._u = 0
+        self._P = prior_p
 
-        self.children = {}
-        self.policy = policy
-        
+    def is_root(self):
+        return self._parent is None
+
+    def is_leaf(self):
+        return len(self.children) == 0
 
     def get_root(self):
         root = self
@@ -50,70 +52,76 @@ class TreeNode:
         return board
 
     def select(self):
-        if len(self.children) == 0:
-            return self
-        return max(self.children, key = lambda move, child : child.get_utc())
+        return max(self._children.items(),
+                   key=lambda act_node: act_node[1].get_value(c_puct))
 
-    def expand(self):
-        board = self.get_board()
-        availables = board.available_moves()
-
-        if len(availables) == 0:
-            raise NameError("no availables")
-
-        result = policy(board, player)
-        for move, value in result:
-            self.children[move] = TreeNode(self, self.policy)
-            
-
-        # select random move now, but it will be selected by nn
-        next_move = availables[randint(0, len(availables)-1)]
-        new_child = TreeNode(self, self.policy)
-        self.children.append((next_move, new_child))
-        return new_child
+    def expand(self, action_priors):
+        for action, prob in action_priors:
+            if action not in self._children:
+                self._children[action] = TreeNode(self, prob)
 
     def update(self, win, played, player):
-        if player == self.player:            
-            self.win += win
-        self.played += played
+        if self._parent:
+            self._parent.update_recursive(-leaf_value)
+        self.update(leaf_value)
 
-        if self.parent != None:
-            self.parent.update(win, played, player) 
+        self._n_visits += 1
+        self._Q += 1.0*(leaf_value - self._Q) / self._n_visits
 
-    def simulate(self, playout):
-        class TrainingPlayer:
-            def prestart(self):
-                pass
-
-            def get_next_move(self, board, player):
-                availables = board.available_moves()
-                return availables[randint(0, len(availables) - 1)]
-
-        player = TrainingPlayer()
-
-        win = 0
-        for i in range(playout):
-            referee = Referee()
-            board = Board(15, 15)
-            game_state = referee.start_game(board, player, player)
-            if player == game_state:
-                win += 1
-
-        return win
-
+    def get_value(self, c_puct):
+        self._u = (c_puct * self._P *
+                   np.sqrt(self._parent._n_visits) / (1 + self._n_visits))
+        return self._Q + self._u
+        
             
 
 class MCTS:
-    def __init__(self, policy):
-        self.root = TreeNode(None, policy)
+    def __init__(self):
+        self.root = TreeNode(None, 1.0)
         self.curr_node = self.root
         self.predictor = Predictor(15, 15)
+        self.net = PolicyValueNet(15, 15)
+
 
     def train_self(self):
         selected_node = self.root.select()
         expanded_node = selected_node.expand()
         win = expanded_node.simulate(100)
         expanded_node.update(win, 100, expanded_node.player)
+
+    def playout(self, board):
+        node = self.root
+        player = 1
+
+        while(not node.is_leaf()):
+            action, node = node.select()
+            board.move(action[0], action[1], player)
+            if player == 1:
+                player = 2
+            else:
+                player = 1
+        
+        probs, leaf_value = self.net.policy_value(board, player)
+
+        referee = Referee()
+        state = referee.get_game_state(board)
+        if state < 3:
+            node.expand()
+        else:
+            if state == 0:
+                leaf_value = 0
+            else:
+                leaf_value = 
+
+        
+
+        
+        
+        
+
+
+        
+
 
     def get_next_move(self, board, player):
         if len(self.curr_node.children) == 0:

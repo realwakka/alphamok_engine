@@ -1,7 +1,7 @@
 from game import Referee, Board
 from mcts import MCTSPlayer
 from ai_player import AIPlayer
-
+from network import PolicyValueNet
 class CommandPlayer:
     def prestart(self):
         pass
@@ -17,7 +17,7 @@ def main():
     width = 15
     height = 15
     
-    player1 = AIPlayer(width, height)
+    player1 = AIPlayer(width, height, True)
     player2 = CommandPlayer()
 
     for i in range(500):
@@ -33,5 +33,6 @@ def main():
     
     
 if __name__ == "__main__":
+    net = PolicyValueNet(15,15)
     # execute only if run as a script
     main()

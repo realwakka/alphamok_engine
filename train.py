@@ -2,24 +2,13 @@ from game import Referee, Board
 from mcts import MCTSPlayer
 from ai_player import AIPlayer
 from network import PolicyValueNet
-class CommandPlayer:
-    def prestart(self):
-        pass
-
-    def get_next_move(self, board, player):
-        print(board)
-        x = int(input("x = "))
-        y = int(input("y = "))
-        return (x, y)
 
 def main():
-
     width = 15
     height = 15
+    net = PolicyValueNet(width, height)
+    player = MCTSPlayer(net, is_selfplay=True)
     
-    player1 = AIPlayer(width, height, True)
-    player2 = CommandPlayer()
-
     for i in range(500):
         board = Board(15,15)
         referee = Referee()

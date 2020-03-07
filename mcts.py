@@ -60,7 +60,7 @@ class TreeNode:
             if action not in self._children:
                 self._children[action] = TreeNode(self, prob)
 
-    def update(self, win, played, player):
+    def update(self, leaf_value):
         if self._parent:
             self._parent.update_recursive(-leaf_value)
         self.update(leaf_value)
@@ -72,15 +72,12 @@ class TreeNode:
         self._u = (c_puct * self._P *
                    np.sqrt(self._parent._n_visits) / (1 + self._n_visits))
         return self._Q + self._u
-        
-            
 
 class MCTS:
-    def __init__(self):
+    def __init__(self, net):
         self.root = TreeNode(None, 1.0)
-        self.curr_node = self.root
-        self.predictor = Predictor(15, 15)
-        self.net = PolicyValueNet(15, 15)
+        self.net = net
+        self._n_playout = 1000
 
 
     def train_self(self):
@@ -89,10 +86,10 @@ class MCTS:
         win = expanded_node.simulate(100)
         expanded_node.update(win, 100, expanded_node.player)
 
-    def playout(self, board):
+    def playout(self, board, current_player):
         node = self.root
-        player = 1
-
+        player = current_player
+        
         while(not node.is_leaf()):
             action, node = node.select()
             board.move(action[0], action[1], player)
@@ -105,100 +102,73 @@ class MCTS:
 
         referee = Referee()
         state = referee.get_game_state(board)
-        if state < 3:
+        if state > 2:
             node.expand()
         else:
-            if state == 0:
+            winner = state
+            if winner == 0:
                 leaf_value = 0
             else:
-                leaf_value = 
+                leaf_value = (1.0 if winner == current_player else -1.0)
 
-        
+        node.update(leaf_value)
 
-        
-        
-        
+    def get_move_probs(self, state, temp=1e-3):
+        for n in range(self._n_playout):
+            state_copy = copy.deepcopy(state)
+            self._playout(state_copy)
 
+        act_visits = [(act, node._n_visits)
+                      for act, node in self._root._children.items()]
+        acts, visits = zip(*act_visits)
 
-        
+        def softmax(x):
+            probs = np.exp(x - np.max(x))
+            probs /= np.sum(probs)
+            return probs
 
+        act_probs = softmax(1.0/temp * np.log(np.array(visits) + 1e-10))
+        return acts, act_probs
 
-    def get_next_move(self, board, player):
-        if len(self.curr_node.children) == 0:
-            expanded_node = self.curr_node.expand()
-            win = expanded_node.simulate(100)
-            expanded_node.update(win, 100, expanded_node.player)
-            #raise NameError("I don't know!!")
-        
-        next_move, next_child = max(self.curr_node.children, key=lambda p: p[1].get_utc())
-        self.curr_node = next_child
-        return next_move
+    def update_with_move(self, last_move):
+        """Step forward in the tree, keeping everything we already know
+        about the subtree.
+        """
+        if last_move in self._root._children:
+            self._root = self._root._children[last_move]
+            self._root._parent = None
+        else:
+            self._root = TreeNode(None, 1.0)
 
-class Predictor:
-    def __init__(self, width, height):
-        self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(32, (3,3), activation='relu',input_shape=(height, width, 3)),
-            tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
-            tf.keras.layers.Conv2D(128, (3,3), activation='relu'),
-            tf.keras.layers.Conv2D(4, (1,1), activation='relu'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dense(1)
-        ])
-
-        self.model.compile(optimizer='adam',
-                           loss='sparse_categorical_crossentropy',
-                           metrics=['accuracy'])
-
-    def reverse_player(self, board):
-        for i in board.shape[0]:
-            for j in board.shape[1]:
-                if board[i, j, 0] == 1:
-                    if board[i, j, 1] == 1:
-                        board[i, j, 1] = 0
-                        board[i, j, 2] = 1
-                    else:
-                        board[i, j, 1] = 1
-                        board[i, j, 2] = 0
-
-    def predict(self, board, player):
-        availables = board.available_moves()
-        train_data = np.zeros((len(availables), board.width(), board.height(), 3))
-
-        for i in range(len(availables)):
-            move = availables[i]
-            b = copy.deepcopy(board)
-            if player == 2:
-                self.reverse_player(b.board)
-
-            b.move(move[0], move[1], 1)
-            train_data[i, :] = b.board
-            
-        scores = self.model.predict(train_data)
-
-        result = []
-        for i in range(len(availables)):
-            result.append((availables[i], scores[i,0]))
-
-        result.sort(key=lambda x : x[1], reverse=True)
-        return result
 
 class MCTSPlayer:
-    def __init__(self, width, height, player):
-        self.predictor = Predictor(width, height)
-        self.mcts = MCTS(width, height, policy)
+    def __init__(self, net,
+                 c_puct=5, n_playout=2000, is_selfplay=False):
+        self.mcts = MCTS(net, c_puct, n_playout)
+        self._is_selfplay = is_selfplay
 
-    def policy(self, board, player):
-        return self.predictor.predict(board,player)
+    def reset_player(self):
+        self.mcts.update_with_move(-1)
 
-    def prestart(self):
-        self.mcts.train_self()
-        
     def get_next_move(self, board, player):
-        return self.mcts.get_next_move(board, player)
+        temp = 1e-3
 
-if __name__ == "__main__":
-    board = Board(15, 15)
-    predictor = Predictor(15, 15)
-    print(predictor.predict(board, 1))
-    
+        sensible_moves = board.available_moves()
+        # the pi vector returned by MCTS as in the alphaGo Zero paper
+        move_probs = np.zeros(board.width() * board.height())
+        if len(sensible_moves) > 0:
+            acts, probs = self.mcts.get_move_probs(board, temp)
+            move_probs[list(acts)] = probs
+            if self._is_selfplay:
+                move = np.random.choice(
+                    acts,
+                    p=0.75*probs + 0.25*np.random.dirichlet(0.3*np.ones(len(probs)))
+                )
+                self.mcts.update_with_move(move)
+            else:
+                move = np.random.choice(acts, p=probs)
+                self.mcts.update_with_move(-1)
+
+            return move, move_probs
+        else:
+            print("WARNING: the board is full")

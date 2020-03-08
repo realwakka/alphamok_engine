@@ -7,7 +7,7 @@ import math
 from network import PolicyValueNet
 
 class TreeNode:
-    def __init__(self, parent):
+    def __init__(self, parent, prior_p):
         self._parent = parent
         self._children = {}
         self._n_visits = 0
@@ -19,39 +19,9 @@ class TreeNode:
         return self._parent is None
 
     def is_leaf(self):
-        return len(self.children) == 0
+        return len(self._children) == 0 
 
-    def get_root(self):
-        root = self
-        while root.parent != None:
-            root = root.parent
-        return root
-
-    def get_move_by_child(self, target_child):
-        for move, child in self.children.items():
-            if target_child == child:
-                return move
-
-        raise NameError("child not found")
-        
-
-    def get_utc(self):
-        t = self.get_root().played
-        c = math.sqrt(2)
-        wi = self.win
-        ni = self.played
-        return wi/ni + c * math.sqrt(math.log(t) / ni)
-
-    def get_board(self):
-        board = Board(15,15)
-        node = self
-        while node.parent != None:
-            move = node.parent.get_move_by_child(node)
-            board.move(move[0], move[1], node.player)
-            node = node.parent
-        return board
-
-    def select(self):
+    def select(self, c_puct):
         return max(self._children.items(),
                    key=lambda act_node: act_node[1].get_value(c_puct))
 
@@ -62,8 +32,7 @@ class TreeNode:
 
     def update(self, leaf_value):
         if self._parent:
-            self._parent.update_recursive(-leaf_value)
-        self.update(leaf_value)
+            self._parent.update(-leaf_value)
 
         self._n_visits += 1
         self._Q += 1.0*(leaf_value - self._Q) / self._n_visits
@@ -74,25 +43,19 @@ class TreeNode:
         return self._Q + self._u
 
 class MCTS:
-    def __init__(self, net):
-        self.root = TreeNode(None, 1.0)
+    def __init__(self, net, c_puct, n_playout):
+        self._root = TreeNode(None, 1.0)
         self.net = net
-        self._n_playout = 1000
+        self._n_playout = n_playout
+        self.c_puct = c_puct
 
-
-    def train_self(self):
-        selected_node = self.root.select()
-        expanded_node = selected_node.expand()
-        win = expanded_node.simulate(100)
-        expanded_node.update(win, 100, expanded_node.player)
-
-    def playout(self, board, current_player):
-        node = self.root
+    def _playout(self, board, current_player):
+        node = self._root
         player = current_player
         
         while(not node.is_leaf()):
-            action, node = node.select()
-            board.move(action[0], action[1], player)
+            action, node = node.select(self.c_puct)
+            board.move_pos(action, player)
             if player == 1:
                 player = 2
             else:
@@ -102,8 +65,9 @@ class MCTS:
 
         referee = Referee()
         state = referee.get_game_state(board)
+        
         if state > 2:
-            node.expand()
+            node.expand(probs)
         else:
             winner = state
             if winner == 0:
@@ -113,10 +77,10 @@ class MCTS:
 
         node.update(leaf_value)
 
-    def get_move_probs(self, state, temp=1e-3):
+    def get_move_probs(self, state, player, temp=1e-3):
         for n in range(self._n_playout):
             state_copy = copy.deepcopy(state)
-            self._playout(state_copy)
+            self._playout(state_copy, player)
 
         act_visits = [(act, node._n_visits)
                       for act, node in self._root._children.items()]
@@ -143,9 +107,12 @@ class MCTS:
 
 class MCTSPlayer:
     def __init__(self, net,
-                 c_puct=5, n_playout=2000, is_selfplay=False):
+                 c_puct=5, n_playout=100, is_selfplay=False):
         self.mcts = MCTS(net, c_puct, n_playout)
         self._is_selfplay = is_selfplay
+
+    def prestart(self):
+        pass
 
     def reset_player(self):
         self.mcts.update_with_move(-1)
@@ -157,7 +124,7 @@ class MCTSPlayer:
         # the pi vector returned by MCTS as in the alphaGo Zero paper
         move_probs = np.zeros(board.width() * board.height())
         if len(sensible_moves) > 0:
-            acts, probs = self.mcts.get_move_probs(board, temp)
+            acts, probs = self.mcts.get_move_probs(board, player, temp)
             move_probs[list(acts)] = probs
             if self._is_selfplay:
                 move = np.random.choice(

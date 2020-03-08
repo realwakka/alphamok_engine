@@ -60,7 +60,10 @@ class Board:
         for i in range(self.board.shape[2]):
             if self.board[x, y, i] == 1:
                 return i
-        
+
+    def move_pos(self, pos, player):
+        self.move(pos // self.width(), pos % self.width(), player)
+
     def move(self, x, y, player):
         if player == 0 or player > 2:
             raise NameError("Wrong player")
@@ -76,10 +79,10 @@ class Board:
 
     def available_moves(self):
         ret = []
-        for i in range(self.width()):
-            for j in range(self.height()):
+        for i in range(self.height()):
+            for j in range(self.width()):
                 if self.board[i, j, 0] == 1:
-                    ret.append((i, j))
+                    ret.append(i * self.width() + j)
                 
         return ret
 
@@ -139,7 +142,7 @@ class Referee:
 
         return moved_count % 2 + 3
         
-
+    
     def start_game(self, board, player1, player2):
         history = []
         
@@ -147,11 +150,11 @@ class Referee:
         player2.prestart()
 
         while True:
-            next_move = player1.get_next_move(board, 1)
-            board.move(next_move[0], next_move[1], 1)
+            next_move, prob = player1.get_next_move(board, 1)
+            board.move_pos(next_move, 1)
             history.append(copy.deepcopy(board))
-            #print(board)
-            #x = input("sdf")
+            print(board)
+            x = input("sdf")
             
             game_state = self.get_game_state(board)
             if game_state < 3:
@@ -159,8 +162,8 @@ class Referee:
                 #player2.on_finish_game(game_state)
                 return game_state
         
-            next_move = player2.get_next_move(board, 2)
-            board.move(next_move[0], next_move[1], 2)
+            next_move, prob = player2.get_next_move(board, 2)
+            board.move_pos(next_move, 2)
             history.append(copy.deepcopy(board))            
 
             game_state = self.get_game_state(board)

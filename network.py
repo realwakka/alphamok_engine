@@ -39,12 +39,12 @@ class PolicyValueNet:
 
     def policy_value(self, board, player):
         availables = board.available_moves()
-
         act_probs, value = self.model.predict(board.board.reshape(-1, self.width, self.height, 3))
         act_probs =  zip(availables, act_probs.flatten()[availables])
         return act_probs, value[0][0]
 
     def train(self, state_input, mcts_probs, winner):
+        print(state_input)
         state_input_union = np.array(state_input)
         mcts_probs_union = np.array(mcts_probs)
         winner_union = np.array(winner)

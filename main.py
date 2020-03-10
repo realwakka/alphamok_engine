@@ -20,7 +20,7 @@ def main():
     player1 = AIPlayer(width, height, True)
     player2 = CommandPlayer()
 
-    for i in range(500):
+    for i in range(50000):
         board = Board(15,15)
         referee = Referee()
         result = referee.start_game(board, player1, player1)

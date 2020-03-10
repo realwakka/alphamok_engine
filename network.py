@@ -1,10 +1,19 @@
 import tensorflow as tf
 import numpy as np
 
+model_file = "mcts.h5"
+
 class PolicyValueNet:
     def __init__(self, width, height):
         self.width = width
         self.height = height
+
+        try:
+            self.model = tf.keras.models.load_model(model_file)
+            return
+        except OSError:
+            print('no model file... creating new model...')
+
         inputs = tf.keras.Input(shape=(width, height, 3))
         
         network = tf.keras.layers.Conv2D(32, (3,3), activation='relu')(inputs)
@@ -26,16 +35,6 @@ class PolicyValueNet:
                            loss=['categorical_crossentropy', 'mean_squared_error'],
                            metrics=['accuracy'])
 
-    def policy_value_fn(self, board):
-        """
-        input: board
-        output: a list of (action, probability) tuples for each available action and the score of the board state
-        """
-        legal_positions = board.availables
-        current_state = board.current_state()
-        act_probs, value = self.policy_value(current_state.reshape(-1, 4, self.board_width, self.board_height))
-        act_probs = zip(legal_positions, act_probs.flatten()[legal_positions])
-        return act_probs, value[0][0]
 
     def policy_value(self, board, player):
         availables = board.available_moves()
@@ -44,7 +43,6 @@ class PolicyValueNet:
         return act_probs, value[0][0]
 
     def train(self, state_input, mcts_probs, winner):
-        print(state_input)
         state_input_union = np.array(state_input)
         mcts_probs_union = np.array(mcts_probs)
         winner_union = np.array(winner)
@@ -57,6 +55,8 @@ class PolicyValueNet:
         entropy = self_entropy(action_probs)
         # K.set_value(self.model.optimizer.lr, learning_rate)
         self.model.fit(state_input_union, [mcts_probs_union, winner_union], batch_size=len(state_input), verbose=0)
+
+        self.model.save(model_file)
         return loss[0], entropy
 
 

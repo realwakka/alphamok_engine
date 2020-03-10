@@ -95,9 +95,6 @@ class MCTS:
         return acts, act_probs
 
     def update_with_move(self, last_move):
-        """Step forward in the tree, keeping everything we already know
-        about the subtree.
-        """
         if last_move in self._root._children:
             self._root = self._root._children[last_move]
             self._root._parent = None
@@ -107,7 +104,7 @@ class MCTS:
 
 class MCTSPlayer:
     def __init__(self, net,
-                 c_puct=5, n_playout=100, is_selfplay=False):
+                 c_puct=5, n_playout=1000, is_selfplay=False):
         self.mcts = MCTS(net, c_puct, n_playout)
         self._is_selfplay = is_selfplay
 

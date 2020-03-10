@@ -59,24 +59,21 @@ class Trainer:
         return moved_count % 2 + 3
         
     def get_equi_data(self, play_data):
-        """augment the data set by rotation and flipping
-        play_data: [(state, mcts_prob, winner_z), ..., ...]
-        """
         extend_data = []
         for state, mcts_porb, winner in play_data:
             equi_state = state
-            equi_mcts_prob = mcts_porb
+            equi_mcts_prob = mcts_porb.reshape((self.width, self.height))
             
             for i in [1, 2, 3, 4]:
                 # rotate counterclockwise
-                equi_state = np.rot90(equi_state)
-                equi_mcts_prob = np.rot90(equi_mcts_prob)
-                extend_data.append((equi_state, equi_mcts_prob, winner))
+                equi_state = np.rot90(m=equi_state, k=1, axes=(0,1))
+                equi_mcts_prob = np.rot90(m=equi_mcts_prob, axes=(0,1))
+                extend_data.append((equi_state, equi_mcts_prob.flatten(), winner))
                 
                 # flip horizontally
                 flipped_state = np.fliplr(equi_state)
                 flipped_mcts_prob = np.fliplr(equi_mcts_prob)
-                extend_data.append((flipped_state, flipped_mcts_prob, winner))
+                extend_data.append((flipped_state, flipped_mcts_prob.flatten(), winner))
 
 
         return extend_data
@@ -96,9 +93,11 @@ class Trainer:
             game_state = self.get_game_state(board)
             if game_state < 3:
                 break
-            
-            stone_color = 1 if stone_color == 2 else 1
+            stone_color = 2 if stone_color == 1 else 1
+            print(board)
+            input()
 
+        print("GameEnd : " + str(game_state))
         winners_z = np.zeros(len(current_players))
         winner = game_state
 
@@ -127,9 +126,9 @@ def main():
     width = 15
     height = 15
     net = PolicyValueNet(width, height)
-    player = MCTSPlayer(net, is_selfplay=True)
+    player = MCTSPlayer(net, n_playout=400, is_selfplay=False)
     trainer = Trainer(15, 15, net)
-    for i in range(100):
+    for i in range(1000):
         print("episode " + str(i) + "...\n")
         board = Board(15,15)
         trainer.simulate(board,player)
@@ -138,6 +137,4 @@ def main():
        
     
 if __name__ == "__main__":
-    net = PolicyValueNet(15,15)
-    # execute only if run as a script
     main()

@@ -47,36 +47,45 @@ class Board:
             for j in range(height):
                 self.board[i, j, 0] = 1
 
+    def is_full(self):
+        for i in range(self.height()):
+            for j in range(self.width()):
+                if self.board[i, j, 0] == 1:
+                    return False
+
+        return True
+
     def width(self):
         return self.board.shape[0]
     
     def height(self):
         return self.board.shape[1]
 
-    def get(self, x, y):
+    def get(self, y, x):
         
         if x < 0 or x >= self.width() or y < 0 or y >= self.height():
             raise NameError("Out of bounds")
         
         for i in range(self.board.shape[2]):
-            if self.board[x, y, i] == 1:
+            if self.board[y, x, i] == 1:
                 return i
 
     def move_pos(self, pos, player):
-        self.move(pos // self.width(), pos % self.width(), player)
+        return self.move(pos // self.width(), pos % self.width(), player)
 
-    def move(self, x, y, player):
+    def move(self, y, x, player):
         if player == 0 or player > 2:
             raise NameError("Wrong player")
 
         if x < 0 or x >= self.width() or y < 0 or y >= self.height():
             raise NameError("Out of bounds")
 
-        if self.board[x, y, 0] != 1:
+        if self.board[y, x, 0] != 1:
             raise NameError("Already moved")
 
-        self.board[x, y, 0] = 0
-        self.board[x, y, player] = 1
+        self.board[y, x, 0] = 0
+        self.board[y, x, player] = 1
+
 
     def available_moves(self):
         ret = []
@@ -98,9 +107,9 @@ class Board:
 
     def __str__(self):
         ret = ""
-        for i in range(self.width()):
+        for i in range(self.height()):
             ret += "\n"
-            for j in range(self.height()):
+            for j in range(self.width()):
                 ret += " " + str(self.get(i, j))
         return ret
                 
@@ -109,10 +118,30 @@ class Board:
 class Referee:
     def __init__(self):
         self.id = 1
+        self.direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
+                                (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
+                                (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
+                                (lambda x, y : (x + 1, y + 1), lambda x, y : (x - 1, y - 1))]
+    def get_game_state_hint(self, board, move, player):
+        return self.get_game_state_hint_pos(board, move // board.width(), move % board.width(), player)
+
+    def get_game_state_hint_pos(self, board, y, x, player):
+        for direction_pair in self.direction_pairs:
+            combo = self.max_combo(board, x, y, direction_pair[0], player)
+            combo += self.max_combo(board, x, y, direction_pair[1], player)
+            if combo == 6:
+                return player
+        
+
+        if board.is_full():
+            return 0
+            
+        return 3 if player == 2 else 4
+
 
     def max_combo(self, board, x, y, direction_func, prev_player):
         try:
-            player = board.get(x, y)
+            player = board.get(y, x)
         except NameError:
             return 0
 

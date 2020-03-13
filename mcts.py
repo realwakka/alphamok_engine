@@ -52,20 +52,16 @@ class MCTS:
     def _playout(self, board, current_player):
         node = self._root
         player = current_player
-        
+        action = 0
         while(not node.is_leaf()):
             action, node = node.select(self.c_puct)
             board.move_pos(action, player)
-            if player == 1:
-                player = 2
-            else:
-                player = 1
+            player = 1 if player == 2 else 2
         
         probs, leaf_value = self.net.policy_value(board, player)
-
+        
         referee = Referee()
         state = referee.get_game_state(board)
-        
         if state > 2:
             node.expand(probs)
         else:
@@ -84,6 +80,7 @@ class MCTS:
 
         act_visits = [(act, node._n_visits)
                       for act, node in self._root._children.items()]
+
         acts, visits = zip(*act_visits)
 
         def softmax(x):

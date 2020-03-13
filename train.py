@@ -15,48 +15,6 @@ class Trainer:
         self.width = width
         self.height = height
 
-    def max_combo(self, board, x, y, direction_func, prev_player):
-        try:
-            player = board.get(x, y)
-        except NameError:
-            return 0
-
-        if player == prev_player:
-            nx, ny = direction_func(x, y)
-            return self.max_combo(board, nx, ny, direction_func, player) + 1
-        else:
-            return 0
-
-
-    def get_game_state(self, board):
-        cache = np.zeros((board.width(),board.height()))
-        direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
-                           (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
-                           (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
-                           (lambda x, y : (x + 1, y + 1), lambda x, y : (x - 1, y - 1))]
-
-        is_full = True
-        moved_count = 0
-
-        for i in range(board.height()):
-            for j in range(board.width()):
-                player = board.get(i, j)
-                if player == 0:
-                    is_full = False
-                    continue
-                
-                moved_count += 1
-                
-                for direction_pair in direction_pairs:
-                    combo = self.max_combo(board, i, j, direction_pair[0], player)
-                    combo += self.max_combo(board, i, j, direction_pair[1], player)
-                    if combo == 6:
-                        return player
-
-        if is_full:
-            return GameState.END_DRAW
-
-        return moved_count % 2 + 3
         
     def get_equi_data(self, play_data):
         extend_data = []
@@ -81,26 +39,23 @@ class Trainer:
     def simulate(self, board, player):
         states, mcts_probs, current_players = [], [], []
         stone_color = 1
-        
+        referee = Referee()
         while True:
             next_move, prob = player.get_next_move(board, stone_color)
             board.move_pos(next_move, stone_color)
-            
+
             current_players.append(stone_color)
             mcts_probs.append(prob)
             states.append(np.copy(board.board))
-
-            game_state = self.get_game_state(board)
+            game_state = referee.get_game_state_hint(board, next_move, stone_color)
             if game_state < 3:
                 break
             stone_color = 2 if stone_color == 1 else 1
-            print(board)
-            input()
 
         print("GameEnd : " + str(game_state))
         winners_z = np.zeros(len(current_players))
         winner = game_state
-
+        print(board)
         if game_state != 0:
             winners_z[np.array(current_players) == winner] = 1.0
             winners_z[np.array(current_players) != winner] = -1.0
@@ -126,11 +81,11 @@ def main():
     width = 15
     height = 15
     net = PolicyValueNet(width, height)
-    player = MCTSPlayer(net, n_playout=400, is_selfplay=False)
-    trainer = Trainer(15, 15, net)
-    for i in range(1000):
+    player = MCTSPlayer(net, n_playout=100, is_selfplay=True)
+    trainer = Trainer(width, height, net)
+    for i in range(1500):
         print("episode " + str(i) + "...\n")
-        board = Board(15,15)
+        board = Board(width,height)
         trainer.simulate(board,player)
         trainer.train()
 

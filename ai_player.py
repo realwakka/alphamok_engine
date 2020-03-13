@@ -14,7 +14,7 @@ class AIPlayer:
         self.height = height
         self.data_buffer = []
         self.training = training
-        self.e = 0.2
+        self.e = 0.5
 
         try:
             self.model = tf.keras.models.load_model(model_file)
@@ -61,7 +61,7 @@ class AIPlayer:
                 self.data_buffer.append([flipped, result])
 
 
-        sample_size = 512
+        sample_size = 1024
         if len(self.data_buffer) < sample_size:
             return
         
@@ -71,7 +71,7 @@ class AIPlayer:
         for i in range(0, sample_size):
             train_input[i, :] = sample_data[i][0]
             train_output[i, :] = sample_data[i][1]
-            
+
         self.model.fit(x=train_input, y=train_output, epochs=5)
         self.save()        
 

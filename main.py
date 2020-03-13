@@ -21,9 +21,10 @@ def main():
     player2 = CommandPlayer()
 
     for i in range(50000):
-        board = Board(15,15)
+        board = Board(width,height)
         referee = Referee()
         result = referee.start_game(board, player1, player1)
+        print(board)
         print("win : " + str(result) + "\n")
         print("episode" + str(i) + "\n")
 

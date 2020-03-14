@@ -1,4 +1,4 @@
-from game import Referee, Board, GameState
+from game import Referee, Board, GameState, NewBoard
 from mcts import MCTSPlayer
 from ai_player import AIPlayer
 from collections import defaultdict, deque
@@ -24,7 +24,7 @@ class Trainer:
             
             for i in [1, 2, 3, 4]:
                 # rotate counterclockwise
-                equi_state = np.rot90(m=equi_state, k=1, axes=(0,1))
+                equi_state = np.rot90(m=equi_state)
                 equi_mcts_prob = np.rot90(m=equi_mcts_prob, axes=(0,1))
                 extend_data.append((equi_state, equi_mcts_prob.flatten(), winner))
                 
@@ -39,24 +39,23 @@ class Trainer:
     def simulate(self, board, player):
         states, mcts_probs, current_players = [], [], []
         stone_color = 1
-        referee = Referee()
         while True:
             next_move, prob = player.get_next_move(board, stone_color)
-            board.move_pos(next_move, stone_color)
 
             current_players.append(stone_color)
             mcts_probs.append(prob)
-            states.append(np.copy(board.board))
-            game_state = referee.get_game_state_hint(board, next_move, stone_color)
-            if game_state < 3:
+            states.append(np.copy(board.current_state(stone_color)))
+            print(board)
+            board.do_move(next_move, stone_color)
+            is_end, winner = board.game_end()
+            if is_end:
                 break
             stone_color = 2 if stone_color == 1 else 1
 
-        print("GameEnd : " + str(game_state))
+        print("GameEnd : " + str(winner))
         winners_z = np.zeros(len(current_players))
-        winner = game_state
         print(board)
-        if game_state != 0:
+        if winner != -1:
             winners_z[np.array(current_players) == winner] = 1.0
             winners_z[np.array(current_players) != winner] = -1.0
         # reset MCTS root node
@@ -81,15 +80,13 @@ def main():
     width = 15
     height = 15
     net = PolicyValueNet(width, height)
-    player = MCTSPlayer(net, n_playout=100, is_selfplay=True)
+    player = MCTSPlayer(net, n_playout=1000, is_selfplay=True)
     trainer = Trainer(width, height, net)
     for i in range(1500):
         print("episode " + str(i) + "...\n")
-        board = Board(width,height)
+        board = NewBoard(width,height)
         trainer.simulate(board,player)
         trainer.train()
-
-       
     
 if __name__ == "__main__":
     main()

@@ -14,7 +14,7 @@ class PolicyValueNet:
         except OSError:
             print('no model file... creating new model...')
 
-        inputs = tf.keras.Input(shape=(width, height, 3))
+        inputs = tf.keras.Input(shape=(width, height, 5))
         
         network = tf.keras.layers.Conv2D(32, (3,3), activation='relu')(inputs)
         network = tf.keras.layers.Conv2D(64, (3,3), activation='relu')(network)
@@ -37,8 +37,9 @@ class PolicyValueNet:
 
 
     def policy_value(self, board, player):
-        availables = board.available_moves()
-        act_probs, value = self.model.predict(board.board.reshape(-1, self.width, self.height, 3))
+        availables = board.availables
+        state = board.current_state(player)
+        act_probs, value = self.model.predict(state.reshape((-1, 15, 15, 5)))
         act_probs =  zip(availables, act_probs.flatten()[availables])
         return act_probs, value[0][0]
 

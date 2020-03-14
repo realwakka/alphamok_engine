@@ -55,17 +55,15 @@ class MCTS:
         action = 0
         while(not node.is_leaf()):
             action, node = node.select(self.c_puct)
-            board.move_pos(action, player)
+            board.do_move(action, player)
             player = 1 if player == 2 else 2
         
         probs, leaf_value = self.net.policy_value(board, player)
-        
-        referee = Referee()
-        state = referee.get_game_state(board)
-        if state > 2:
+        is_end, winner = board.game_end()
+
+        if not is_end:
             node.expand(probs)
         else:
-            winner = state
             if winner == 0:
                 leaf_value = 0
             else:
@@ -114,9 +112,9 @@ class MCTSPlayer:
     def get_next_move(self, board, player):
         temp = 1e-3
 
-        sensible_moves = board.available_moves()
+        sensible_moves = board.availables
         # the pi vector returned by MCTS as in the alphaGo Zero paper
-        move_probs = np.zeros(board.width() * board.height())
+        move_probs = np.zeros(board.width * board.height)
         if len(sensible_moves) > 0:
             acts, probs = self.mcts.get_move_probs(board, player, temp)
             move_probs[list(acts)] = probs

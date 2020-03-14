@@ -40,12 +40,153 @@ class GameState(enum.Enum):
     BLACK_TURN = 3
     WHITE_TURN = 4
 
+class NewBoard():
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.states = {}
+        self.n_in_row = 5
+
+        self.availables = list(range(self.width * self.height))
+        self.states = {}
+        self.last_move = -1
+    
+    def max_combo(self, x, y, direction_func, prev_player):
+        if x < 0 or x >= self.width or y < 0 or y >= self.height:
+            return 0
+
+        
+        move = y * self.width + x
+
+        if not move in self.states:
+            return 0
+
+        player = self.states[move]
+
+        if player == prev_player:
+            nx, ny = direction_func(x, y)
+            return self.max_combo(nx, ny, direction_func, player) + 1
+        else:
+            return 0
+
+    def get_max_combo(self, move):
+        direction_pairs = [(lambda x, y : (x + 1, y), lambda x, y : (x - 1, y)),
+                        (lambda x, y : (x, y + 1), lambda x, y : (x, y - 1)),
+                        (lambda x, y : (x - 1, y + 1), lambda x, y : (x + 1, y - 1)),
+                        (lambda x, y : (x + 1, y + 1), lambda x, y : (x - 1, y - 1))]
+        
+
+        if move in self.states:
+            y = move // self.width
+            x = move % self.width
+            player = self.states[move]
+            max_combo = 0
+            for direction_pair in direction_pairs:
+                combo = self.max_combo(x, y, direction_pair[0], player)
+                combo += self.max_combo(x, y, direction_pair[1], player)
+                max_combo = max(combo, max_combo)
+
+            return max_combo
+        else:
+            return 0
+    def __str__(self):
+        ret = "\n"
+
+        for i in range(self.height):
+            for j in range(self.width):
+                move = i * self.width + j
+                if move in self.states:
+                    ret += str(self.states[move])
+                else:
+                    ret += " "
+                
+                ret += " "
+            ret += "\n"
+        return ret
+
+    def current_state(self, current_player):
+        square_state = np.zeros((self.height, self.width, 5))
+        if self.states:
+            moves, players = np.array(list(zip(*self.states.items())))
+            move_curr = moves[players == current_player]
+            move_oppo = moves[players != current_player]
+            square_state[move_curr // self.width,
+                            move_curr % self.width, 0] = 1.0
+            square_state[move_oppo // self.width,
+                            move_oppo % self.width, 1] = 1.0
+            # indicate the last move location
+            square_state[self.last_move // self.width,
+                            self.last_move % self.width][2] = 1.0
+
+        for m, s in self.states.items():
+            combo = self.get_max_combo(m)
+            square_state[m // self.width, m % self.width, 3] = combo
+
+        if current_player == 2:
+            square_state[:, :][4] = 1.0  # indicate the colour to play
+        return square_state[:, ::-1, :]
+
+    def do_move(self, move, current_player):
+        self.states[move] = current_player
+        self.availables.remove(move)
+        self.last_move = move
+
+    def has_a_winner(self):
+        width = self.width
+        height = self.height
+        states = self.states
+        n = self.n_in_row
+
+        moved = list(set(range(width * height)) - set(self.availables))
+        if len(moved) < self.n_in_row *2-1:
+            return False, -1
+
+        for m in moved:
+            h = m // width
+            w = m % width
+            player = states[m]
+
+            if (w in range(width - n + 1) and
+                    len(set(states.get(i, -1) for i in range(m, m + n))) == 1):
+                return True, player
+
+            if (h in range(height - n + 1) and
+                    len(set(states.get(i, -1) for i in range(m, m + n * width, width))) == 1):
+                return True, player
+
+            if (w in range(width - n + 1) and h in range(height - n + 1) and
+                    len(set(states.get(i, -1) for i in range(m, m + n * (width + 1), width + 1))) == 1):
+                return True, player
+
+            if (w in range(n - 1, width) and h in range(height - n + 1) and
+                    len(set(states.get(i, -1) for i in range(m, m + n * (width - 1), width - 1))) == 1):
+                return True, player
+
+        return False, -1
+
+    def game_end(self):
+        """Check whether the game is ended or not"""
+        win, winner = self.has_a_winner()
+        if win:
+            return True, winner
+        elif not len(self.availables):
+            return True, -1
+        return False, -1
+
 class Board:
     def __init__(self, width, height):
+        self.states = {}
+        
         self.board = np.zeros((width, height, 3))
+        self.last_move = (-1, -1)
         for i in range(width):
             for j in range(height):
                 self.board[i, j, 0] = 1
+
+    def get_state(self):
+        data = np.zeros((self.width, self.height, 5))
+        data[1:3, :, :] = self.board
+
 
     def is_full(self):
         for i in range(self.height()):
@@ -85,6 +226,7 @@ class Board:
 
         self.board[y, x, 0] = 0
         self.board[y, x, player] = 1
+        self.last_move = (y, x)
 
 
     def available_moves(self):
